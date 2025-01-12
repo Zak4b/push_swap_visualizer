@@ -2,6 +2,7 @@ import tkinter as tk
 from time import sleep
 from stack import Stack
 import random
+import argparse
 import subprocess
 
 def reverse_operation(operation):
@@ -59,16 +60,13 @@ class PushSwapVisualizer:
 		self.play_bt = tk.Button(self.controls_frame, text="⏯", command=self.play_visualization)
 		self.play_bt.pack(side=tk.LEFT)
 
-		self.pause_bt = tk.Button(self.controls_frame, text="Pause", command=self.pause_visualization)
-		self.pause_bt.pack(side=tk.LEFT)
-
 		self.forward_bt = tk.Button(self.controls_frame, text="Step Forward", command=self.step_forward)
 		self.forward_bt.pack(side=tk.LEFT)
 
 		self.backward_bt = tk.Button(self.controls_frame, text="Step Backward", command=self.step_backward)
 		self.backward_bt.pack(side=tk.LEFT)
 
-		self.speed_scale = tk.Scale(self.controls_frame, from_=1, to=10, orient=tk.HORIZONTAL, label="Speed")
+		self.speed_scale = tk.Scale(self.controls_frame, from_=1, to=100, orient=tk.HORIZONTAL, label="Speed")
 		self.speed_scale.pack(side=tk.LEFT)
 		self.speed_scale.set(5)
 
@@ -93,7 +91,7 @@ class PushSwapVisualizer:
 		sorted_indices = {value: idx for idx, value in enumerate(sorted(self.stack_a.elements + self.stack_b.elements))}
 		self.bar_config = {
 			value: {
-				"width": ((sorted_indices[value] + 1) / (len(sorted_indices))) * 200,
+				"width": ((sorted_indices[value] + 1) / (len(sorted_indices))) * 290,
 				"color": f"#{int((sorted_indices[value] + 1) / len(sorted_indices) * 255):02x}00{255 - int((sorted_indices[value] + 1) / len(sorted_indices) * 255):02x}"
 			}
 			for value in sorted_indices
@@ -101,12 +99,12 @@ class PushSwapVisualizer:
 
 	def draw_stacks(self):
 		self.canvas.delete("all")
-		self.draw_stack(self.stack_a, 50)
-		self.draw_stack(self.stack_b, 350)
+		self.draw_stack(self.stack_a, 0)
+		self.draw_stack(self.stack_b, 300)
 
 	def draw_stack(self, stack, x):
 		y = 0
-		for value in stack.elements: 
+		for value in stack.elements:
 			config = self.bar_config[value]
 			self.canvas.create_rectangle(x, y, x + config["width"], y + self.bar_height, fill=config["color"], outline="")
 			y += self.bar_height
@@ -139,29 +137,24 @@ class PushSwapVisualizer:
 			self.stack_b.reverse_rotate()
 
 	def visualize_operations(self):
-		if self.operation_index >= len(self.operations):
+		if self.operation_index >= len(self.operations) or not self.is_playing:
 			self.is_playing = False
 			return
-
 		self.execute_operation(self.operations[self.operation_index])
 		self.draw_stacks()
-		self.operations_list.selection_clear(0, tk.END)
-		self.operations_list.selection_set(self.operation_index)
-		self.operations_list.activate(self.operation_index)
+		self.select_operation(self.operation_index)
 		self.operation_index += 1
 
-		if self.is_playing:
-			delay = int(1000 / self.speed_scale.get())
-			self.root.after(delay, self.visualize_operations)
+		delay = int(1000 / self.speed_scale.get())
+		self.root.after(delay, self.visualize_operations)
 
 	def play_visualization(self):
-		self.is_playing = True
-		self.visualize_operations()
-
-	def pause_visualization(self):
-		self.is_playing = False
+		self.is_playing = not self.is_playing
+		if self.is_playing:
+			self.visualize_operations()
 
 	def step_forward(self):
+		self.is_playing = False
 		if self.operation_index >= len(self.operations):
 			return
 		self.execute_operation(self.operations[self.operation_index])
@@ -170,6 +163,7 @@ class PushSwapVisualizer:
 		self.operation_index += 1
 
 	def step_backward(self):
+		self.is_playing = False
 		if self.operation_index <= 0:
 			return
 		self.operation_index -= 1
@@ -196,25 +190,32 @@ class PushSwapVisualizer:
 			self.count_entry.insert(0, "10")
 
 	def run_push_swap(self):
+		self.is_playing = False
 		try:
 			input_values = self.input_entry.get()
-			self.values = list(map(int, input_values.split()))
-			result = subprocess.check_output(["./push_swap"] + input_values.split(), text=True)
-			self.operations = result.strip().split("\n")
+			result = subprocess.run([args.path] + input_values.split(), text=True, capture_output=True, timeout=5, check=True)
+			self.operations = result.stdout.strip().split("\n")
 			self.operation_index = 0
 
 			self.operations_list.delete(0, tk.END)
 			for operation in self.operations:
 				self.operations_list.insert(tk.END, operation)
+			self.values = list(map(int, input_values.split()))
 			self.stack_a.elements = self.values.copy()
+			self.stack_b.clear()
 			self.calculate_bar_config()
 			self.draw_stacks()
 		except FileNotFoundError:
-			print("Error: ./push_swap executable not found.")
+			print("Error: push_swap executable not found.")
+		except subprocess.TimeoutExpired:
+			print("Error: push_swap took too long to execute.")
 		except subprocess.CalledProcessError as e:
-			print(f"Error: push_swap failed with error: {e.output}")
+			print(f"Error: push_swap failed:\n{e.stderr}")
 
 if __name__ == "__main__":
+	parser = argparse.ArgumentParser(description="Visualizer for Push Swap project")
+	parser.add_argument("--path", type=str, default="./push_swap", help="push_swap executable path")
+	args = parser.parse_args()
 	root = tk.Tk()
 	root.title("Push Swap Visualizer")
 
