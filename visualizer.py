@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import tkinter as tk
 from time import sleep
 from stack import Stack
@@ -36,10 +38,8 @@ class PushSwapVisualizer:
 		self.is_playing = False
 		self.bar_height = None
 		self.bar_config = None
-		self.canvas_h = 400
-		self.canvas_w = 600
-		self.canvas = tk.Canvas(root, width=self.canvas_w, height=self.canvas_h, bg="white")
-		self.canvas.pack()
+		self.canvas = tk.Canvas(root, bg="white")
+		self.canvas.pack(fill=tk.BOTH, expand=True)
 
 		self.controls_frame = tk.Frame(root)
 		self.controls_frame.pack()
@@ -84,14 +84,21 @@ class PushSwapVisualizer:
 
 		self.operations_list = tk.Listbox(self.operations_frame, height=15, width=30)
 		self.operations_list.pack()
+		self.resize_job = None
+		self.root.bind("<Configure>", self._resize)
+
+	def _resize(self, event):
+		if self.resize_job:
+			self.root.after_cancel(self.resize_job) 
+		self.resize_job = self.root.after(200, lambda: (self.calculate_bar_config(), self.draw_stacks()))
 
 	def calculate_bar_config(self):
 		max_elements = max(self.stack_a.size(), self.stack_b.size(), 1)
-		self.bar_height = self.canvas_h / max_elements
+		self.bar_height = self.canvas.winfo_height() / max_elements
 		sorted_indices = {value: idx for idx, value in enumerate(sorted(self.stack_a.elements + self.stack_b.elements))}
 		self.bar_config = {
 			value: {
-				"width": ((sorted_indices[value] + 1) / (len(sorted_indices))) * 290,
+				"width": ((sorted_indices[value] + 1) / (len(sorted_indices))) * (self.canvas.winfo_width() / 2),
 				"color": f"#{int((sorted_indices[value] + 1) / len(sorted_indices) * 255):02x}00{255 - int((sorted_indices[value] + 1) / len(sorted_indices) * 255):02x}"
 			}
 			for value in sorted_indices
@@ -100,7 +107,7 @@ class PushSwapVisualizer:
 	def draw_stacks(self):
 		self.canvas.delete("all")
 		self.draw_stack(self.stack_a, 0)
-		self.draw_stack(self.stack_b, 300)
+		self.draw_stack(self.stack_b, self.canvas.winfo_width() / 2)
 
 	def draw_stack(self, stack, x):
 		y = 0
