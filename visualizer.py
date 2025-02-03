@@ -40,6 +40,8 @@ class PushSwapVisualizer:
 		self.bar_config = None
 		self.canvas = tk.Canvas(root, bg="white")
 		self.canvas.pack(fill=tk.BOTH, expand=True)
+		self.canvas_W = 0
+		self.canvas_H = 0
 
 		self.controls_frame = tk.Frame(root)
 		self.controls_frame.pack()
@@ -65,6 +67,9 @@ class PushSwapVisualizer:
 
 		self.backward_bt = tk.Button(self.controls_frame, text="Step Backward", command=self.step_backward)
 		self.backward_bt.pack(side=tk.LEFT)
+
+		self.number_label = tk.Label(root, textvariable=self.operation_index, font=("Arial", 20))
+		self.number_label.pack(pady=20)
 
 		self.speed_scale = tk.Scale(self.controls_frame, from_=1, to=100, orient=tk.HORIZONTAL, label="Speed")
 		self.speed_scale.pack(side=tk.LEFT)
@@ -93,12 +98,14 @@ class PushSwapVisualizer:
 		self.resize_job = self.root.after(200, lambda: (self.calculate_bar_config(), self.draw_stacks()))
 
 	def calculate_bar_config(self):
+		self.canvas_W = self.canvas.winfo_width()
+		self.canvas_H = self.canvas.winfo_height()
 		max_elements = max(self.stack_a.size(), self.stack_b.size(), 1)
-		self.bar_height = self.canvas.winfo_height() / max_elements
+		self.bar_height = self.canvas_H / max_elements
 		sorted_indices = {value: idx for idx, value in enumerate(sorted(self.stack_a.elements + self.stack_b.elements))}
 		self.bar_config = {
 			value: {
-				"width": ((sorted_indices[value] + 1) / (len(sorted_indices))) * (self.canvas.winfo_width() / 2),
+				"width": ((sorted_indices[value] + 1) / (len(sorted_indices))) * (self.canvas_W / 2),
 				"color": f"#{int((sorted_indices[value] + 1) / len(sorted_indices) * 255):02x}00{255 - int((sorted_indices[value] + 1) / len(sorted_indices) * 255):02x}"
 			}
 			for value in sorted_indices
@@ -107,7 +114,7 @@ class PushSwapVisualizer:
 	def draw_stacks(self):
 		self.canvas.delete("all")
 		self.draw_stack(self.stack_a, 0)
-		self.draw_stack(self.stack_b, self.canvas.winfo_width() / 2)
+		self.draw_stack(self.stack_b, self.canvas_W / 2)
 
 	def draw_stack(self, stack, x):
 		y = 0
